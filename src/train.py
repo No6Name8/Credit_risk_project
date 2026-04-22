@@ -3,7 +3,8 @@ import argparse
 from pathlib import Path
 import joblib
 import pandas as pd
-from sklearn.pipeline import Pipeline
+from imblearn.pipeline import Pipeline
+from imblearn.over_sampling import SMOTE
 from sklearn.model_selection import StratifiedKFold, cross_val_score
 from sklearn.metrics import make_scorer, roc_auc_score
 
@@ -44,8 +45,10 @@ def main():
     cv_results = []
     best_name, best_score, best_pipe = None, -1.0, None
 
+    smote = SMOTE(random_state=CFG.seed)
+
     for name, model in models.items():
-        pipe = Pipeline(steps=[("pre", pre), ("model", model)])
+        pipe = Pipeline(steps=[("pre", pre), ("smote", smote), ("model", model)])
         scores = cross_val_score(pipe, split.X_train, split.y_train, cv=cv, scoring="roc_auc", n_jobs=-1)
         mean_auc = float(scores.mean())
         std_auc = float(scores.std())
@@ -56,7 +59,7 @@ def main():
             best_name = name
             best_pipe = pipe
 
-    # Fit the best model on full train split
+    # Fit the best model on full train split (SMOTE applied only during fit)
     assert best_pipe is not None
     best_pipe.fit(split.X_train, split.y_train)
 
